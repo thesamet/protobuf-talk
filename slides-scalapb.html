@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+
+    <title>ScalaPB: Case class generator for Protocol Buffers</title>
+
+    <meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+    <meta name="author" content="Hakim El Hattab">
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/blood.css" id="theme">
+
+    <!-- Code syntax highlighting -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+
+    <!-- Printing and PDF exports -->
+    <script>
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    </script>
+
+    <!--[if lt IE 9]>
+    <script src="lib/js/html5shiv.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="reveal">
+
+      <!-- Any section element inside of this container is displayed as a slide -->
+      <div class="slides">
+        <section>
+          <h1>ScalaPB</h1>
+          <h3>Protocol Buffer Case-class Generator for Scala</h3>
+          <p>
+            <small><a href="http://www.thesamet.com">Nadav "Sr."
+                                Samet</a></small>
+          </p>
+        </section>
+
+        <section>
+          <h2>The plan</h2>
+          <ul>
+            <li>Protobufs: From beginner to expert in 7 minutes.</li>
+            <li>ScalaPB and why it's awesome</li>
+            <li>Live demo</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What are Protocol Buffers?</h2>
+        </section>
+
+        <section>
+          <h2>What are Protocol Buffers?</h2>
+          <ul>
+            <li>Language that describes data structures.</li>
+            <li>Defines encoding as bytes.</li>
+            <li>Compiler generates code for Java, C++, Python and more.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Example 1: Syntax</h2>
+          <pre><code data-trim contenteditable>
+syntax = "proto3";
+
+message Person {
+  string first_name = 1;
+  string last_name = 2;
+  int32 age = 3;
+}
+          </code></pre>
+
+          <pre class="fragment"><code data-trim contenteditable>
+$ protoc person.proto --java_out=.
+$ protoc person.proto --python_out=.
+$ protoc person.proto --cpp_out=.
+          </code></pre>
+          <pre class="fragment"><code data-trim contenteditable>
+# With ScalaPB intalled:
+$ sbt compile
+          </code></pre>
+        </section>
+
+
+        <section>
+            <section>
+                <h2>Example 1: Serializing (ScalaPB)</h2>
+
+                <pre><code data-trim contenteditable class="scala">
+val p: Person = Person(firstName = "John", 
+                       lastName = "Smith",
+                       age = 34)
+
+p.toByteArray().toVector
+                </code></pre>
+
+                Output:
+                <pre><code data-trim contenteditable class="scala">
+Vector(10, 4, 74, 111, 104, 110, 18, 5, 83, 109, 105,
+       116, 104, 24, 34)
+                </code></pre>
+            </section>
+
+            <section>
+                <h2>Example 1: Serializing (Java)</h2>
+
+                <pre><code data-trim contenteditable class="scala">
+val p: Person = Person.newBuilder()
+  .setFirstName("John")
+  .setLastName("Smith")
+  .setAge(34)
+  .build()
+
+p.toByteArray().toVector
+                </code></pre>
+
+                Output:
+                <pre><code data-trim contenteditable class="scala">
+Vector(10, 4, 74, 111, 104, 110, 18, 5, 83, 109, 105,
+       116, 104, 24, 34)
+                </code></pre>
+            </section>
+        </section>
+
+        <section>
+          <h2>Example 1: Parsing</h2>
+
+          <pre><code data-trim contenteditable class="scala">
+val b = Array[Byte](10, 4, 74, 111, 104, 110, 18, 5, 83,
+                    109, 105, 116, 104, 24, 34)
+
+println(Person.parseFrom(b))
+          </code></pre>
+
+Output:
+
+        <pre><code data-trim contenteditable>
+first_name: "John"
+last_name: "Smith"
+age: 34
+        </code></pre>
+        </section>
+
+<section>
+<h2>Nested messages &amp; repeated fields</h2>
+<div style="float: left; font-size: 90%; width: 50%;">
+<pre><code data-trim contenteditable class="protobuf">
+message Address {
+  string street = 1;
+  string city = 2;  
+}
+
+message BankAccount {
+  string routing_number = 1;
+  string account_number = 2;
+}
+
+message Person {
+  string first_name = 1;
+  string last_name = 2;
+  int32 age = 3;
+  Address address = 4;
+  repeated BankAccount accounts = 5;
+}
+</code></pre>
+</div>
+
+<div style="float: left; width: 50%; font-size: 90%;">
+<pre><code data-trim contenteditable class="scala">
+case class Address(
+  street: String = "",
+  city: String = "")
+
+
+case class BankAccount(
+  routingNumber: String = "",
+  accountNumber: String = "")
+
+
+case class Person(
+  firstName: String = "",
+  lastName: String = "",
+  age: Int = 0,
+  address: Option[Address] = None,
+  accounts: Seq[BankAccount] = Nil)
+</code></pre>
+</div>
+</section>
+
+<section>
+    <section><h2>Wire format</h2>
+        <pre><code data-trim contenteditable>
+message Person {
+  string first_name = 1;
+  string last_name = 2;
+  int32 age = 3;
+}
+        </code></pre>
+        <pre><code data-trim contenteditable>
+Person(firstName = "John", 
+       lastName = "Smith",
+       age = 34).toByteArray</code></pre>
+<style>
+.mytable tbody td {
+  border: 1px solid white !important;
+  font-family: monospace;
+}
+</style>
+
+          <div class="fragment">
+          <table class="mytable">
+              <tr>
+                  <td style="color: skyblue !important;">1</td>
+                  <td>"John"</td>
+                  <td style="color: skyblue !important;">2</td>
+                  <td>"Smith"</td>
+                  <td style="color: skyblue !important;">3</td>
+                  <td>34</td>
+              </tr>
+          </table>
+    </section>
+    <section><h2>Wire format</h2>
+        <pre><code data-trim contenteditable>
+message Person {
+  string phirst_name = 1;
+  string last_name = 2;
+  int32 age = 3;
+}
+        </code></pre>
+        <pre><code data-trim contenteditable>
+Person(phirstName = "John", 
+       lastName = "Smith",
+       age = 34).toByteArray</code></pre>
+<style>
+.mytable tbody td {
+  border: 1px solid white !important;
+  font-family: monospace;
+}
+</style>
+
+          <div>
+          <table class="mytable">
+              <tr>
+                  <td style="color: skyblue !important;">1</td>
+                  <td>"John"</td>
+                  <td style="color: skyblue !important;">2</td>
+                  <td>"Smith"</td>
+                  <td style="color: skyblue !important;">3</td>
+                  <td>34</td>
+              </tr>
+          </table>
+          </div>
+          <br>
+
+          <div class="fragment">
+          Length bytes:
+          <table class="mytable">
+              <tr>
+                  <td style="color: skyblue !important;">1</td>
+                  <td style="color: lightgreen !important;">4</td>
+                  <td>J</td>
+                  <td>o</td>
+                  <td>h</td>
+                  <td>n</td>
+                  <td style="color: skyblue !important;">2</td>
+                  <td style="color: lightgreen !important;">5</td>
+                  <td>S</td>
+                  <td>m</td>
+                  <td>i</td>
+                  <td>t</td>
+                  <td>h</td>
+                  <td style="color: skyblue !important;">3</td>
+                  <td>34</td>
+              </tr>
+          </table>
+          </div>
+          <br>
+          <div class="fragment">
+              Actually:
+          <table class="mytable" style="font-size: 62%">
+              <tr>
+                  <td style="color: skyblue !important;">10</td>
+                  <td style="color: lightgreen !important;">4</td>
+                  <td>74</td>
+                  <td>111</td>
+                  <td>104</td>
+                  <td>110</td>
+                  <td style="color: skyblue !important;">18</td>
+                  <td style="color: lightgreen !important;">5</td>
+                  <td>83</td>
+                  <td>109</td>
+                  <td>105</td>
+                  <td>10</td>
+                  <td>116</td>
+                  <td>104</td>
+                  <td style="color: skyblue !important;">24</td>
+                  <td>34</td>
+              </tr>
+          </table>
+          </div>
+    </section>
+</section>
+        
+
+<section>
+    <h2>Enums</h2>
+    <div style="float: left; width: 50%">
+        <pre><code data-trim contenteditable class="protobuf">
+enum AccountType {
+  CHECKING = 0;
+  SAVINGS = 1;
+}
+
+message BankAccount {
+  string routing_number = 1;
+  string account_number = 2;
+  AccountType account_type = 3;
+}
+</code></pre>
+    </div>
+    <div style="float: left; width: 50%">
+        <pre><code data-trim contenteditable class="scala">
+sealed trait AccountType {
+  def isChecking: Boolean
+  def isSavings: Boolean
+}
+
+case object Checking 
+  extends AccountType
+
+case object Savings 
+  extends AccountType
+</code></pre>
+    </div>
+
+        <pre><code data-trim contenteditable class="scala fragment">
+val b: BankAccount = ...
+
+if (b.accountType.isChecking) { ... } else { ... }
+
+b.accountType match {
+  case Checking => ...
+  case Savings => ...
+}
+        </code>
+        </pre>
+</section>
+
+<section>
+    <h2>One-ofs</h2>
+<pre><code data-trim contenteditable class="protobuf">
+message CreditCard {
+  string last_4 = 1;
+  string cvv = 2;
+  int32 expiration_year = 3;
+  int32 expiration_month = 4;
+}
+
+message PaymentEvent {
+  int32 amount = 1;
+  oneof payment_type {
+    BankAccount bank_account = 2;
+    CreditCard credit_card = 3;
+  }
+}
+</code></pre>
+</section>
+
+
+<section>
+<h2>Benefits and Use Cases</h2>
+<p>...or why not JSON?</p>
+<ul>
+    <li>Efficient binary format.</li>
+    <li>Easier to programatically access the data.</li>
+    <li>Type-safe inter-process communication.</li>
+    <li>Type-safe cross-team communication.</li>
+    <li><b>Great for evolving schemas.</b></li>
+</ul>
+</section>
+        <section>
+          <h2>Schema updates</h2>
+
+<h3>Before</h3>
+          <pre><code data-trim contenteditable>
+message Person {
+  string first_name = 1;
+  string last_name = 2;
+  int32 age = 3;
+}
+          </code></pre>
+
+<h3>After</h3>
+          <pre><code data-trim contenteditable>
+message Person {
+  string given_name = 1;
+  string surname = 2;
+  // int32 age = 3;
+  int32 year_of_birth = 4;
+}
+          </code></pre>
+        </section>
+        <section>
+
+          <h2>Schema updates</h2>
+
+          <p>Things you can do:</p>
+          <ul>
+            <li class="fragment">Add optional fields.</li>
+            <li class="fragment">Remove optional fields.</li>
+            <li class="fragment">Rename fields.</li>
+            <li class="fragment">Convert between compatible types.</li>
+            <li class="fragment">Convert optional fields to repeated.</li>
+            <li class="fragment">Convert a repeated field to optional.</li>
+          </ul>
+        </section>
+
+        <section data-transition="none">
+<h2>Java Protobufs</h2>
+<p>Or why builders are annoying...</p>
+<pre class="stack"><code data-trim contenteditable class="scala">
+val p: Person = Person.newBuilder()
+  .setFirstName("John")
+  .setLastName("Smith")
+  .getAddressBuilder
+    .setStreet("153 Maiden Lane")
+    .setCity("San Francisco")
+  .build()
+</code></pre>
+
+<pre style="visibility: hidden"><code data-trim contenteditable>
+type mismatch;
+[error]  found   : com.example.Test.Address
+[error]  required: com.example.Test.Person
+[error]   .build()
+</code></pre>
+        </section>
+        </section>
+
+        <section data-transition="none">
+<h2>Java Protobufs</h2>
+<p>Or why builders are annoying...</p>
+<pre class="stack"><code data-trim contenteditable class="scala">
+val p: Person = Person.newBuilder()
+  .setFirstName("John")
+  .setLastName("Smith")
+  .getAddressBuilder  // <-- We get an address builder...
+    .setStreet("153 Maiden Lane")
+    .setCity("San Francisco")
+  .build()   // <-- BOOM!!!
+</code></pre>
+
+<pre><code data-trim contenteditable>
+type mismatch;
+[error]  found   : com.example.Test.Address
+[error]  required: com.example.Test.Person
+[error]   .build()
+</code></pre>
+        </section>
+
+        <section data-transition="none">
+<h2>Java Protobufs</h2>
+<p>Or why builders are annoying...</p>
+<pre class="stack"><code data-trim contenteditable class="scala">
+val builder: Person.Builder = Person.newBuilder
+  .setFirstName("John")
+  .setLastName("Smith")
+
+builder.getAddressBuilder
+  .setStreet("153 Maiden Lane")
+  .setCity("San Francisco")
+
+val p: Person = builder.build()
+</code></pre>
+
+<pre class="stack fragment"><code data-trim contenteditable class="scala">
+if (p.hasBankAccount) None
+else Some(p.getBankAccount)
+</code></pre>
+</section>
+
+<section>
+<style>
+.goals tbody th {
+  border: none;
+  border-radius: 8px;
+  border-collapse: separate !important;
+  font-weight: normal;
+    font-size: 90%;
+}
+
+.goals tbody td {
+    font-size: 70%;
+    vertical-align: top;
+}
+
+.goals ul {
+    list-style-type: square;
+}
+
+.goals li {
+}
+
+</style>
+    <h2>ScalaPB Goals</h2>
+
+    <table class="goals" cellspacing="50">
+        <tr>
+            <th style="background: #4885ed;" width="30%">Easy to use and idiomatic</td>
+            <th width="5%">
+            <th style="background: #db3236;" width="30%">Plays well with others</td>
+            <th width="15px" width="5%">
+            <th style="background: #d4a20d;" width="30%">Customizable</td>
+        </tr>
+        <tr>
+            <td>
+                <ul>
+                    <li>Generates idiomatic code.</li>
+                    <li>Case classes</li>
+                    <li>SBT integration</li>
+                    <li>Lenses for easy updates of nested fields.</li>
+                </ul>
+            </td>
+            <td></td>
+            <td>
+                <ul>
+                    <li>Java conversions</li>
+                    <li>Spark integration</li>
+                    <li>JSON conversions</li>
+                    <li>ScalaJS support</li>
+                    <li>gRPC support</li>
+                    <li>Akka serializers</li>
+                </ul>
+            </td>
+            <td></td>
+            <td>
+                <ul>
+                    <li>Custom types </li>
+                    <li>Custom base traits</li>
+                    <li>User-defined options</li>
+                </ul>
+            </td>
+        </tr>
+    </table>
+</section>
+
+<section>
+<h2>ScalaPB: Case classes</h2>
+
+<pre><code data-trim contenteditable class="protobuf">
+message Person {
+  string first_name = 1;
+  string last_name = 2;
+  int32 age = 3;
+  Address address = 4;
+  repeated BankAccount bank_accounts = 5;
+}
+</code></pre>
+
+<pre><code data-trim contenteditable class="scala">
+case class Person(firstName: String = "",
+                  lastName: String = "",
+                  age: Int = 0,
+                  address: Option[Address] = None,
+                  bankAccounts: Seq[BankAccount] = Nil) {
+  def toByteArray: Array[Byte]
+  ...
+}
+
+object Person {
+  def parseFrom(b: Array[Byte]): Person
+}
+</code></pre>
+
+</section>
+
+<section>
+<h2>ScalaPB: Case Classes</h2>
+  <pre><code data-trim contenteditable class="scala">
+val p = Person(
+  firstName = "John",
+  lastName = "Smith",
+  address = Some(Address(
+      street = "153 Maiden Lane",
+      city = "San Francisco")))
+</code></pre>
+
+<p>Better than builders, but can be improved</p>
+
+  <pre><code data-trim contenteditable class="scala fragment">
+val p = Person()
+  .update(  
+    _.firstName := "John",
+    _.lastName := "Smith",
+    _.address.street := "",
+    _.address.city := "San Francisco")))
+  </code></pre>
+</section>
+
+<section>
+<h2>ScalaPB: Case Classes</h2>
+<p>Nested updates are verbose:</p>
+  <pre><code data-trim contenteditable class="scala">
+val p2 = p.copy(
+    address = Some(p.getAddress.copy(
+        street = "Other Street")))
+  </code></pre>
+
+<div class="fragment"><p>With lenses:</p>
+  <pre><code data-trim contenteditable class="scala">
+val p2 = p.update(_.address.street := "Other Street")
+  </code></pre></div>
+</section>
+
+<section>
+<h2>Nested updates</h2>
+  <pre><code data-trim contenteditable class="scala">
+case class A(b: B)
+
+case class B(c: C)
+
+case class C(d: D)
+
+case class D(e: Int)
+</code></pre>
+
+<div class="fragment">
+Immutable update:
+<pre><code data-trim contenteditable class="scala">
+val a2 = a.copy(
+    b = a.b.copy(
+        c = a.b.c.copy(
+            d = a.b.c.d.copy(e = 17))))
+</code></pre>
+</div>
+
+<div class="fragment" style="float: left; width: 50%">
+Mutable update:
+<pre><code data-trim contenteditable class="scala">
+a.b.c.d.e = 17
+</code></pre>
+</div>
+
+<div class="fragment" style="float: left; width: 50%">
+With lenses:
+<pre><code data-trim contenteditable class="scala">
+val a2 = a.update(_.b.c.d.e := 17)
+</code></pre>
+</div>
+</section>
+
+<section>
+<h2>ScalaPB Lenses</h2>
+
+Generate lenses that enable:
+
+<pre><code data-trim contenteditable class="scala">
+val p = Person().update(
+  _.firstName := "John",
+
+  _.address.street := "Market St",
+
+  _.address.city.modify(_.toUpperCase),
+
+  _.bankAccounts :++= seqOfAccounts,
+
+  _.bankAccounts.foreach(_.accountNumber := "****")
+)
+</code></pre>
+
+</section>
+
+<section>
+
+<h2>Custom Types</h2>
+<pre><code data-trim contenteditable class="protobuf">
+import "scalapb/scalapb.proto";
+
+message ClickEvent {
+  int64 timestamp_millis = 1 [
+      (scalapb.field).type = "org.joda.time.DateTime"]
+  string user_id = 2;
+  // ...
+}
+</code></pre>
+
+<pre class="fragment"><code data-trim contenteditable class="scala">
+case class ClickEvent(
+    timestampMillis: org.joda.time.DateTime,
+    userId: String)
+</code></pre>
+
+<pre class="fragment"><code data-trim contenteditable class="scala">
+implicit val intToJoda: scalapb.TypeMapper[Long, DateTime] =
+    TypeMapper(
+        millis => new DateTime(millis))(
+        dt => dt.getMillis)
+</code></pre>
+
+</section>
+
+<section>
+    <h2>Demo</h2>
+</section>
+
+<section>
+<h1>Thank you!</h1>
+</section>
+
+<section>
+<h2>Bonus Slide</h2>
+<h3>Writing a protoc plugin</h3>
+<p>protoc provides the plugin a representation of a parsed proto file</p>
+<pre><code data-trim contenteditable class="protobuf">
+name: "Person"
+field {
+  name: "first_name"
+  number: 1
+  label: LABEL_OPTIONAL
+  type: TYPE_STRING
+}
+field {
+  name: "last_name"
+  number: 2
+  label: LABEL_OPTIONAL
+  type: TYPE_STRING
+}
+</code></pre>
+</section>
+
+
+<section>
+<h2>Bonus Slide</h2>
+<h3>update() signature</h3>
+<pre><code data-trim contenteditable class="scala">
+case class Person(...) {
+  def update(ms: (PersonLens => (Person => Person))*): Person
+}
+</code></pre>
+</section>
+
+
+
+      </div>
+
+    </div>
+
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+
+    <script>
+
+      // Full list of configuration options available at:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+
+        transition: 'slide', // none/fade/slide/convex/concave/zoom
+
+        // Optional reveal.js plugins
+        dependencies: [
+          { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: 'plugin/highlight/highlight.js', async: true, condition: function() { return !!document.querySelector( 'pre code' ); }, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: 'plugin/zoom-js/zoom.js', async: true },
+          { src: 'plugin/notes/notes.js', async: true }
+        ]
+      });
+
+    </script>
+
+  </body>
+</html>
